@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test:unit
+      - run: npm run test:components
+      - run: npm run build
+        env:
+          # Placeholders: the build only needs the variables to exist, it never calls Supabase.
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+          APP_ORIGIN: http://localhost:3000
+
+  database:
+    name: Database (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3.2.0
+        with:
+          version: 3.3.0
+      - run: npm ci
+      - run: supabase start
+      - run: supabase test db
+      - name: Export the local stack settings
+        # Values go from a file straight into GITHUB_ENV, so they are never printed.
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/status.env"
+          url=$(sed -n 's/^API_URL="\(.*\)"$/\1/p' "$RUNNER_TEMP/status.env")
+          key=$(sed -n 's/^PUBLISHABLE_KEY="\(.*\)"$/\1/p' "$RUNNER_TEMP/status.env")
+          echo "::add-mask::$key"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$url"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$key"
+            echo "APP_ORIGIN=http://localhost:3000"
+          } >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/status.env"
+      - run: npm run test:integration
