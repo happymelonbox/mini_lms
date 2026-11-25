@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { checkMutationHeaders, parseJsonBody, parsePageQuery } from "./guards";
 
@@ -7,11 +7,16 @@ const req = (headers: Record<string, string>, body = "{}") =>
   new Request("http://app.test/api/x", { method: "POST", headers, body });
 
 describe("checkMutationHeaders", () => {
-  it.each([
+  it.each<{
+    name: string;
+    headers: Record<string, string>;
+    appOrigin: string | undefined;
+    status: number | null;
+  }>([
     {
       name: "ok",
       headers: { origin: ORIGIN, "content-type": "application/json" },
-      appOrigin: ORIGIN as string | undefined,
+      appOrigin: ORIGIN,
       status: null,
     },
     {
@@ -52,14 +57,8 @@ describe("checkMutationHeaders", () => {
     },
     { name: "no content type", headers: { origin: ORIGIN }, appOrigin: ORIGIN, status: 415 },
   ])("$name", ({ headers, appOrigin, status }) => {
-    if (appOrigin === undefined) delete process.env.APP_ORIGIN;
-    else process.env.APP_ORIGIN = appOrigin;
-    const res = checkMutationHeaders(
-      new Request("http://app.test/x", {
-        method: "POST",
-        headers: headers as Record<string, string>,
-      }),
-    );
+    vi.stubEnv("APP_ORIGIN", appOrigin);
+    const res = checkMutationHeaders(req(headers));
     expect(res?.status ?? null).toBe(status);
   });
 });
@@ -73,8 +72,7 @@ describe("parseJsonBody", () => {
     { name: "unknown key", body: '{"a":1,"b":2}', status: 400 },
   ])("$name", async ({ body, status }) => {
     const r = await parseJsonBody(req({ "content-type": "application/json" }, body), schema);
-    if ("data" in r) expect(status).toBe(200);
-    else expect(r.response.status).toBe(status);
+    expect("data" in r ? 200 : r.response.status).toBe(status);
   });
 });
 

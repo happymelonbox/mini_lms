@@ -1,3 +1,4 @@
+// Request checks shared by route handlers: Origin and Content-Type, capped JSON body, query parsing.
 import type { z } from "zod";
 import { listQuerySchema, type ListQuery } from "@/lib/consultations/schema";
 import { errorResponse, validationError } from "./respond";

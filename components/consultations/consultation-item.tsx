@@ -1,5 +1,7 @@
 "use client";
 
+// One consultation row with its actions: complete, reopen, reschedule, cancel.
+
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {

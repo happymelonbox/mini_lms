@@ -1,18 +1,23 @@
+import { createClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { authenticate } from "@/lib/api/auth";
 import { errorResponse } from "@/lib/api/respond";
+import type { Database } from "@/lib/database.types";
+import { consultation, dbError, listPage, users } from "@/tests/fixtures";
+import { createConsultation, listOwnConsultations } from "@/lib/consultations/service";
 import { GET, POST } from "./route";
 
-const m = vi.hoisted(() => ({ authenticate: vi.fn(), list: vi.fn(), create: vi.fn() }));
-vi.mock("@/lib/api/auth", () => ({ authenticate: m.authenticate }));
-vi.mock("@/lib/consultations/service", () => ({
-  listOwnConsultations: m.list,
-  createConsultation: m.create,
-}));
+vi.mock("@/lib/api/auth");
+vi.mock("@/lib/consultations/service");
+const m = {
+  authenticate: vi.mocked(authenticate),
+  list: vi.mocked(listOwnConsultations),
+  create: vi.mocked(createConsultation),
+};
 
 const ORIGIN = "http://app.test";
-const SUPABASE = { tag: "supabase" };
-const USER = { id: "11111111-1111-4111-8111-111111111111", role: "student", email: "a@b.c" };
-const DTO = { id: "c1", firstName: "Ada" };
+const SUPABASE = createClient<Database>("http://sb.test", "key"); // real client object, never called
+const DTO = consultation({ id: "c1", firstName: "Ada" });
 const FUTURE = new Date(Date.now() + 86_400_000).toISOString();
 const VALID_BODY = { firstName: "Ada", lastName: "L", reason: "Help", scheduledAt: FUTURE };
 
@@ -28,8 +33,8 @@ const rejectAuth = (status: number, code: string) => () =>
 
 beforeEach(() => {
   vi.resetAllMocks();
-  process.env.APP_ORIGIN = ORIGIN;
-  m.authenticate.mockResolvedValue({ supabase: SUPABASE, user: USER });
+  vi.stubEnv("APP_ORIGIN", ORIGIN);
+  m.authenticate.mockResolvedValue({ supabase: SUPABASE, user: users.student });
 });
 
 describe("GET /api/consultations", () => {
@@ -57,19 +62,14 @@ describe("GET /api/consultations", () => {
     },
     {
       name: "success returns the page plus pageSize",
-      setup: () =>
-        m.list.mockResolvedValue({
-          ok: true,
-          value: { data: [DTO], nextCursor: "n", prevCursor: null },
-        }),
+      setup: () => m.list.mockResolvedValue(listPage([DTO], "n")),
       url: "http://app.test/api/consultations?pageSize=5",
       status: 200,
       body: { data: [DTO], nextCursor: "n", prevCursor: null, pageSize: 5 },
     },
     {
       name: "rate limit error maps to 429",
-      setup: () =>
-        m.list.mockResolvedValue({ ok: false, error: { code: "P0001", message: "rate_limited" } }),
+      setup: () => m.list.mockResolvedValue({ ok: false, error: dbError("P0001", "rate_limited") }),
       url: "http://app.test/api/consultations",
       status: 429,
       body: { error: { code: "rate_limited" } },
@@ -85,17 +85,10 @@ describe("GET /api/consultations", () => {
   it.each([{ name: "requires the student role and scopes the list to that student" }])(
     "$name",
     async () => {
-      m.list.mockResolvedValue({
-        ok: true,
-        value: { data: [], nextCursor: null, prevCursor: null },
-      });
+      m.list.mockResolvedValue(listPage([]));
       await GET(new Request("http://app.test/api/consultations"));
       expect(m.authenticate).toHaveBeenCalledWith("student");
-      expect(m.list).toHaveBeenCalledWith(
-        SUPABASE,
-        USER.id,
-        expect.objectContaining({ pageSize: 10 }),
-      );
+      expect(m.list).toHaveBeenCalledExactlyOnceWith(SUPABASE, users.student.id, { pageSize: 10 });
     },
   );
 });
@@ -142,7 +135,7 @@ describe("POST /api/consultations", () => {
       setup: () =>
         m.create.mockResolvedValue({
           ok: false,
-          error: { code: "P0001", message: "scheduled_at_must_be_future" },
+          error: dbError("P0001", "scheduled_at_must_be_future"),
         }),
       req: () => post(VALID_BODY),
       status: 400,
@@ -152,7 +145,7 @@ describe("POST /api/consultations", () => {
       name: "unknown db error maps to 500 without leaking text",
       setup: () => {
         vi.spyOn(console, "error").mockImplementation(() => {});
-        m.create.mockResolvedValue({ ok: false, error: { code: "XX000", message: "secret" } });
+        m.create.mockResolvedValue({ ok: false, error: dbError("XX000", "secret") });
       },
       req: () => post(VALID_BODY),
       status: 500,
@@ -172,7 +165,7 @@ describe("POST /api/consultations", () => {
       m.create.mockResolvedValue({ ok: true, value: DTO });
       await POST(post(VALID_BODY));
       expect(m.authenticate).toHaveBeenCalledWith("student");
-      expect(m.create).toHaveBeenCalledWith(SUPABASE, USER.id, VALID_BODY);
+      expect(m.create).toHaveBeenCalledExactlyOnceWith(SUPABASE, users.student.id, VALID_BODY);
     },
   );
 });

@@ -1,3 +1,4 @@
+// Shared two-column shell for the signed-out auth pages.
 import { cn } from "@/lib/utils";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {

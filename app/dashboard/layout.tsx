@@ -1,3 +1,4 @@
+// Student shell: header plus a role redirect.
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/layout/app-header";
 import { getCurrentUser } from "@/lib/auth/current-user";

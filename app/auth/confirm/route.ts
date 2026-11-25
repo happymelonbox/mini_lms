@@ -1,3 +1,4 @@
+// GET /auth/confirm: verifies the emailed token hash, then redirects to a safe same-site path.
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
 import { createClient } from "@/lib/supabase/server";
 import { type EmailOtpType } from "@supabase/supabase-js";

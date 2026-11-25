@@ -1,3 +1,4 @@
+// Reads the signed-in user and role from verified JWT claims.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { Constants } from "@/lib/database.types";

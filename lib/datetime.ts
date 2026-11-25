@@ -1,3 +1,4 @@
+// Conversions between datetime-local inputs, ISO strings and display parts.
 const pad = (n: number) => String(n).padStart(2, "0");
 
 // <input type="datetime-local"> value ("YYYY-MM-DDTHH:mm", parsed as local time) -> UTC ISO 8601, which the API

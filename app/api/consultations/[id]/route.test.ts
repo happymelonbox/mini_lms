@@ -1,16 +1,20 @@
+import { createClient } from "@supabase/supabase-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { authenticate } from "@/lib/api/auth";
 import { errorResponse } from "@/lib/api/respond";
+import type { Database } from "@/lib/database.types";
+import { consultation, dbError, users } from "@/tests/fixtures";
+import { updateConsultation } from "@/lib/consultations/service";
 import { PATCH } from "./route";
 
-const m = vi.hoisted(() => ({ authenticate: vi.fn(), update: vi.fn() }));
-vi.mock("@/lib/api/auth", () => ({ authenticate: m.authenticate }));
-vi.mock("@/lib/consultations/service", () => ({ updateConsultation: m.update }));
+vi.mock("@/lib/api/auth");
+vi.mock("@/lib/consultations/service");
+const m = { authenticate: vi.mocked(authenticate), update: vi.mocked(updateConsultation) };
 
 const ORIGIN = "http://app.test";
-const SUPABASE = { tag: "supabase" };
-const USER = { id: "11111111-1111-4111-8111-111111111111", role: "student", email: "a@b.c" };
+const SUPABASE = createClient<Database>("http://sb.test", "key"); // real client object, never called
 const ID = "22222222-2222-4222-8222-222222222222";
-const DTO = { id: ID, status: "completed" };
+const DTO = consultation({ id: ID, status: "completed" });
 
 const patch = (body: unknown, headers: Record<string, string> = {}) =>
   new Request(`http://app.test/api/consultations/${ID}`, {
@@ -25,8 +29,8 @@ const rejectAuth = (status: number, code: string) => () =>
 
 beforeEach(() => {
   vi.resetAllMocks();
-  process.env.APP_ORIGIN = ORIGIN;
-  m.authenticate.mockResolvedValue({ supabase: SUPABASE, user: USER });
+  vi.stubEnv("APP_ORIGIN", ORIGIN);
+  m.authenticate.mockResolvedValue({ supabase: SUPABASE, user: users.student });
 });
 
 describe("PATCH /api/consultations/[id]", () => {
@@ -100,7 +104,7 @@ describe("PATCH /api/consultations/[id]", () => {
       setup: () =>
         m.update.mockResolvedValue({
           ok: false,
-          error: { code: "P0001", message: "invalid_status_transition" },
+          error: dbError("P0001", "invalid_status_transition"),
         }),
       id: ID,
       req: () => patch({ action: "complete" }),
@@ -120,7 +124,9 @@ describe("PATCH /api/consultations/[id]", () => {
     async () => {
       m.update.mockResolvedValue({ ok: true, value: DTO });
       await call(patch({ action: "complete" }));
-      expect(m.update).toHaveBeenCalledWith(SUPABASE, USER.id, ID, { action: "complete" });
+      expect(m.update).toHaveBeenCalledExactlyOnceWith(SUPABASE, users.student.id, ID, {
+        action: "complete",
+      });
     },
   );
 });

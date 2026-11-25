@@ -15,8 +15,8 @@ it.each([
   { name: "Confirm fires onAction and closes", press: "Confirm", actions: 1 },
   { name: "Cancel closes without acting", press: "Cancel", actions: 0 },
 ])("AlertDialog $name", async ({ press, actions }) => {
-  const onAction = vi.fn();
-  const user = userEvent.setup();
+  const onAction = vi.fn<() => void>();
+  const user = userEvent.setup({ delay: null });
   render(
     <AlertDialog>
       <AlertDialogTrigger>Delete</AlertDialogTrigger>

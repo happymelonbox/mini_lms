@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { updateSession } from "@/lib/supabase/proxy";
 import { config, proxy } from "@/proxy";
 
-const m = vi.hoisted(() => ({ updateSession: vi.fn() }));
-vi.mock("@/lib/supabase/proxy", () => ({ updateSession: m.updateSession }));
+vi.mock("@/lib/supabase/proxy");
 
 // Next compiles the matcher with path-to-regexp; for this pattern, anchoring it is equivalent.
 const matcher = new RegExp(`^${config.matcher[0]}$`);
@@ -31,7 +31,7 @@ const request = () => new NextRequest("http://app.test/dashboard");
 describe("proxy", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "http://supabase.test";
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://supabase.test");
   });
 
   it.each([
@@ -41,7 +41,7 @@ describe("proxy", () => {
       respond: () => NextResponse.redirect("http://app.test/auth/login"),
     },
   ])("$name carries a nonce CSP, and the request gets the same one", async ({ respond }) => {
-    m.updateSession.mockImplementation(async () => respond());
+    vi.mocked(updateSession).mockImplementation(async () => respond());
     const req = request();
     const res = await proxy(req);
     const csp = res.headers.get("Content-Security-Policy");
@@ -52,7 +52,7 @@ describe("proxy", () => {
   });
 
   it.each([{ name: "each request gets a fresh nonce" }])("$name", async () => {
-    m.updateSession.mockImplementation(async () => NextResponse.next());
+    vi.mocked(updateSession).mockImplementation(async () => NextResponse.next());
     const [a, b] = [await proxy(request()), await proxy(request())];
     const nonces = [a, b].map((r) => nonceOf(r.headers.get("Content-Security-Policy")));
     expect(nonces[0]).toBeTruthy();

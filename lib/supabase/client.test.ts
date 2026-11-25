@@ -1,14 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createClient } from "./client";
 
-const m = vi.hoisted(() => ({ createBrowserClient: vi.fn(() => "browser-client") }));
+const m = vi.hoisted(() => ({
+  createBrowserClient: vi.fn<
+    (url: string, key: string, o: { cookieOptions: { secure: boolean } }) => string
+  >(() => "browser-client"),
+}));
 vi.mock("@supabase/ssr", () => ({ createBrowserClient: m.createBrowserClient }));
-
-afterEach(() => {
-  vi.unstubAllGlobals();
-  vi.unstubAllEnvs();
-  m.createBrowserClient.mockClear();
-});
 
 describe("browser createClient", () => {
   it.each([
@@ -19,7 +17,7 @@ describe("browser createClient", () => {
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://sb.test");
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "pub-key");
     expect(createClient()).toBe("browser-client");
-    expect(m.createBrowserClient).toHaveBeenCalledWith("http://sb.test", "pub-key", {
+    expect(m.createBrowserClient).toHaveBeenCalledExactlyOnceWith("http://sb.test", "pub-key", {
       cookieOptions: { secure },
     });
   });

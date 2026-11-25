@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { updateSession } from "./proxy";
 
+type Claims = { data: { claims: { sub: string } } | null };
 type SetAll = (c: { name: string; value: string; options: object }[]) => void;
 type Options = { cookieOptions: { secure: boolean | undefined }; cookies: { setAll: SetAll } };
 
 const m = vi.hoisted(() => {
-  const getClaims = vi.fn();
+  const getClaims = vi.fn<() => Promise<Claims>>();
   const createServerClient = vi.fn<(url: string, key: string, o: Options) => unknown>(() => ({
     auth: { getClaims },
   }));
@@ -17,12 +18,7 @@ vi.mock("@supabase/ssr", () => ({ createServerClient: m.createServerClient }));
 const SIGNED_IN = { data: { claims: { sub: "u1" } } };
 const SIGNED_OUT = { data: null };
 const req = (path: string) => new NextRequest(`http://app.test${path}`);
-const optionsPassed = () => m.createServerClient.mock.calls[0][2] as Options;
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.clearAllMocks();
-});
+const optionsPassed = () => m.createServerClient.mock.calls[0][2];
 
 describe("updateSession redirects", () => {
   it.each([
@@ -73,7 +69,7 @@ describe("updateSession cookies", () => {
 
   it.each([{ name: "refreshed cookies are on the returned response and the request" }])(
     "$name",
-    async ({}) => {
+    async () => {
       const request = req("/dashboard");
       m.getClaims.mockImplementation(async () => {
         optionsPassed().cookies.setAll([

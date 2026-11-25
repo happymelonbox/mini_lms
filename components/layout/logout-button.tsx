@@ -1,5 +1,7 @@
 "use client";
 
+// Signs out and refreshes the router so no cached rows survive.
+
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";

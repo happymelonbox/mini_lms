@@ -9,6 +9,7 @@ import {
   create,
   freshStudent,
   type Handler,
+  NIL_UUID,
   setupClients,
 } from "./helpers";
 
@@ -20,7 +21,6 @@ type Page = {
   nextCursor: string | null;
   prevCursor: string | null;
 };
-const NIL = "00000000-0000-0000-0000-000000000000";
 const walk = async (
   actor: Actor,
   fn: Handler,
@@ -42,11 +42,10 @@ const at = (base: number, ms: number) => new Date(base + ms).toISOString();
 
 describe("keyset pagination", () => {
   it.each([
-    { name: "distinct instants", offsets: [0, 1000, 2000, 3000], same: false },
+    { name: "distinct instants", offsets: [0, 1000, 2000, 3000] },
     {
       name: "three bookings at the same instant plus a later one",
       offsets: [0, 0, 0, 1000],
-      same: true,
     },
   ])(
     "student walk forward then back returns every row once, in order: $name",
@@ -60,15 +59,15 @@ describe("keyset pagination", () => {
         .select("id")
         .order("scheduled_at")
         .order("id");
-      const want = rows!.map((r) => r.id);
-      expect(want.sort()).toEqual([...ids].sort());
-      const start = encodeCursor(at(base, -1), NIL);
+      const ordered = rows!.map((r) => r.id);
+      expect([...ordered].sort()).toEqual([...ids].sort());
+      const start = encodeCursor(at(base, -1), NIL_UUID);
       const fwd = await walk("student", GET, "/api/consultations", "after", start, 10);
-      expect(fwd).toEqual(rows!.map((r) => r.id));
+      expect(fwd).toEqual(ordered);
       // back from just past the last row
       const end = encodeCursor(at(base, 5000), "ffffffff-ffff-4fff-8fff-ffffffffffff");
       const back = await walk("student", GET, "/api/consultations", "before", end, 10);
-      expect(back).toEqual([...rows!.map((r) => r.id)].reverse());
+      expect(back).toEqual([...ordered].reverse());
     },
   );
 
@@ -77,7 +76,7 @@ describe("keyset pagination", () => {
     const a = await create("student", { scheduledAt: at(base, 0) });
     const b = await create("student2", { scheduledAt: at(base, 500) });
     const c = await create("student", { scheduledAt: at(base, 1000) });
-    const start = encodeCursor(at(base, -1), NIL);
+    const start = encodeCursor(at(base, -1), NIL_UUID);
     const got = await walk("admin", adminGET, "/api/admin/consultations", "after", start, 3);
     expect(got).toEqual([a, b, c]);
   });

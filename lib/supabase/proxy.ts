@@ -1,3 +1,4 @@
+// Session refresh and signed-out redirect used by proxy.ts.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 

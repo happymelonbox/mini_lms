@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // Pinned before the helpers run: Date reads TZ lazily, so the cases below do not depend on the CI machine.
 process.env.TZ = "Australia/Sydney";
@@ -56,10 +56,9 @@ describe("isoToLocalInput (Australia/Sydney)", () => {
 describe("UTC viewer", () => {
   it.each([{ input: "2026-03-01T10:00", want: "2026-03-01T10:00:00.000Z" }])(
     "localInputToIso($input) is UTC",
-    async ({ input, want }) => {
-      process.env.TZ = "UTC";
+    ({ input, want }) => {
+      vi.stubEnv("TZ", "UTC");
       expect(localInputToIso(input)).toBe(want);
-      process.env.TZ = "Australia/Sydney";
     },
   );
 });

@@ -1,18 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { auth, router } from "@/tests/navigation";
 import { SignUpForm } from "./sign-up-form";
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
-
-const auth = vi.hoisted(() => ({ signUp: vi.fn() }));
-vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth }) }));
-
-beforeEach(() => vi.clearAllMocks());
-
 async function submit(password: string, repeat: string) {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   render(<SignUpForm />);
   await user.type(screen.getByLabelText("Email"), "ann@example.com");
   await user.type(screen.getByLabelText("Password"), password);
@@ -56,7 +49,9 @@ describe("SignUpForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(alert);
       expect(router.push).not.toHaveBeenCalled();
     } else {
-      await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith("/auth/sign-up-success"));
+      await vi.waitFor(() =>
+        expect(router.push).toHaveBeenCalledExactlyOnceWith("/auth/sign-up-success"),
+      );
     }
   });
 });

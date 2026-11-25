@@ -4,25 +4,25 @@ import { expect, it, vi } from "vitest";
 import { Button } from "./button";
 
 it.each([
-  { name: "default fires onClick", variant: undefined, disabled: false, clicks: 1 },
-  {
-    name: "destructive fires onClick",
-    variant: "destructive" as const,
-    disabled: false,
-    clicks: 1,
-  },
-  { name: "disabled never fires onClick", variant: undefined, disabled: true, clicks: 0 },
-])("Button $name", async ({ variant, disabled, clicks }) => {
-  const onClick = vi.fn();
+  { name: "fires onClick", disabled: false, clicks: 1 },
+  { name: "disabled never fires onClick", disabled: true, clicks: 0 },
+])("Button $name", async ({ disabled, clicks }) => {
+  const onClick = vi.fn<() => void>();
   render(
-    <Button variant={variant} disabled={disabled} onClick={onClick}>
+    <Button disabled={disabled} onClick={onClick}>
       Go
     </Button>,
   );
-  const button = screen.getByRole("button", { name: "Go" });
-  if (variant) expect(button).toHaveClass("bg-destructive");
-  await userEvent.setup().click(button);
+  await userEvent.setup({ delay: null }).click(screen.getByRole("button", { name: "Go" }));
   expect(onClick).toHaveBeenCalledTimes(clicks);
+});
+
+it.each([
+  { name: "default variant", variant: undefined, expectedClass: "bg-primary" },
+  { name: "destructive variant", variant: "destructive" as const, expectedClass: "bg-destructive" },
+])("Button $name has its class", ({ variant, expectedClass }) => {
+  render(<Button variant={variant}>Go</Button>);
+  expect(screen.getByRole("button", { name: "Go" })).toHaveClass(expectedClass);
 });
 
 it.each([{ name: "asChild renders the child element, not a button" }])("Button $name", () => {

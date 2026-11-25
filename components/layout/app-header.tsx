@@ -1,5 +1,7 @@
 "use client";
 
+// Signed-in header: nav for the user's role, theme switcher, logout.
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/layout/logout-button";

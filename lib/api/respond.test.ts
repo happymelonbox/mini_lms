@@ -7,31 +7,51 @@ describe("dbErrorResponse", () => {
       name: "cancelled immutable",
       err: { code: "P0001", message: "consultation_cancelled_immutable" },
       status: 409,
+      code: "conflict",
     },
     {
       name: "invalid transition",
       err: { code: "P0001", message: "invalid_status_transition" },
       status: 409,
+      code: "conflict",
     },
     {
       name: "reschedule needs scheduled",
       err: { code: "P0001", message: "reschedule_requires_scheduled" },
       status: 409,
+      code: "conflict",
     },
     {
       name: "past date",
       err: { code: "P0001", message: "scheduled_at_must_be_future" },
       status: 400,
+      code: "validation_error",
     },
     {
       name: "check constraint",
       err: { code: "23514", message: "violates check constraint first_name_valid" },
       status: 400,
+      code: "validation_error",
     },
-    { name: "rate limited", err: { code: "P0001", message: "rate_limited" }, status: 429 },
-    { name: "unknown guard", err: { code: "P0001", message: "student_id_immutable" }, status: 500 },
-    { name: "arbitrary", err: { code: "XX000", message: "secret internals" }, status: 500 },
-  ])("$name -> $status, never leaks raw text", async ({ err, status }) => {
+    {
+      name: "rate limited",
+      err: { code: "P0001", message: "rate_limited" },
+      status: 429,
+      code: "rate_limited",
+    },
+    {
+      name: "unknown guard",
+      err: { code: "P0001", message: "student_id_immutable" },
+      status: 500,
+      code: "internal_error",
+    },
+    {
+      name: "arbitrary",
+      err: { code: "XX000", message: "secret internals" },
+      status: 500,
+      code: "internal_error",
+    },
+  ])("$name -> $status, never leaks raw text", async ({ err, status, code }) => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = dbErrorResponse(err);
     log.mockRestore();
@@ -40,7 +60,7 @@ describe("dbErrorResponse", () => {
     const text = await res.text();
     // the stable code may appear in `code`, never in the message
     expect(JSON.parse(text).error.message).not.toContain(err.message);
-    expect(JSON.parse(text).error.code).toEqual(expect.any(String));
+    expect(JSON.parse(text).error.code).toBe(code);
   });
 });
 

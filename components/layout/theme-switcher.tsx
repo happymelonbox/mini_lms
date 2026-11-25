@@ -1,5 +1,7 @@
 "use client";
 
+// Light, dark or system theme menu.
+
 import { Button } from "@/components/ui/button";
 import { useMounted } from "@/hooks/use-mounted";
 import {

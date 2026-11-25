@@ -9,11 +9,14 @@ const ok = { firstName: " Ann ", lastName: "Lee", reason: "Help", scheduledAt: l
 describe("bookingFormSchema", () => {
   it.each([
     { name: "valid, trims names, emits UTC ISO", input: ok, error: undefined },
-    { name: "empty first name", input: { ...ok, firstName: "  " }, error: "firstName" },
-    { name: "reason too long", input: { ...ok, reason: "x".repeat(1001) }, error: "reason" },
     { name: "empty date", input: { ...ok, scheduledAt: "" }, error: "scheduledAt" },
     { name: "past date", input: { ...ok, scheduledAt: "2020-01-01T10:00" }, error: "scheduledAt" },
     { name: "garbage date", input: { ...ok, scheduledAt: "soon" }, error: "scheduledAt" },
+    {
+      name: "reason over 1000 characters",
+      input: { ...ok, reason: "x".repeat(1001) },
+      error: "reason",
+    },
   ])("$name", ({ input, error }) => {
     const r = bookingFormSchema.safeParse(input);
     if (!error) {

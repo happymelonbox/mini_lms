@@ -1,3 +1,4 @@
+// /: sends the visitor to login, the error page, or their role's home.
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { createClient } from "@/lib/supabase/server";

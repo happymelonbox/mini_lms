@@ -1,3 +1,4 @@
+// GET lists the student's own consultations; POST books a new one.
 import { authenticate } from "@/lib/api/auth";
 import { checkMutationHeaders, parseJsonBody, parsePageQuery } from "@/lib/api/guards";
 import { dbErrorResponse, json } from "@/lib/api/respond";

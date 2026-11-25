@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -6,8 +7,6 @@ vi.mock("next/font/google", () => {
   const font = (variable: string) => () => ({ variable });
   return { Source_Sans_3: font("sans-var"), Newsreader: font("heading-var") };
 });
-// jsdom has no matchMedia, which next-themes reads for the system theme.
-vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {} }));
 
 import RootLayout from "./layout";
 

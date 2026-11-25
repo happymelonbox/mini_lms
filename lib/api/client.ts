@@ -1,3 +1,4 @@
+// Browser-side fetch wrappers that turn API errors into messages safe to show.
 import type { CreateInput, PatchInput } from "@/lib/consultations/schema";
 
 type ApiResult =

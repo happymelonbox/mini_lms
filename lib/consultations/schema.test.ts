@@ -12,7 +12,7 @@ describe("createSchema", () => {
       name: "trims names",
       input: { ...valid, firstName: "  Ada " },
       ok: true,
-      check: (d: { firstName: string }) => d.firstName === "Ada",
+      data: { firstName: "Ada" },
     },
     {
       name: "blank first name",
@@ -61,11 +61,11 @@ describe("createSchema", () => {
     { name: "unknown key student_id", input: { ...valid, student_id: "x" }, ok: false, field: "" },
     { name: "unknown key status", input: { ...valid, status: "completed" }, ok: false, field: "" },
     { name: "not an object", input: "nope", ok: false, field: "" },
-  ])("$name", ({ input, ok, field, check }) => {
+  ])("$name", ({ input, ok, field, data }) => {
     const r = createSchema.safeParse(input);
     expect(r.success).toBe(ok);
-    if (r.success && check) expect(check(r.data)).toBe(true);
-    if (!r.success && field) expect(r.error.issues.some((i) => i.path[0] === field)).toBe(true);
+    if (r.success && data) expect(r.data).toMatchObject(data);
+    if (!r.success && field) expect(r.error.issues.map((i) => i.path[0])).toContain(field);
   });
 });
 

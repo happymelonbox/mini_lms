@@ -54,6 +54,9 @@ export async function setupClients() {
 
 export const ORIGIN = process.env.APP_ORIGIN!;
 export const JSON_HEADERS = { origin: ORIGIN, "content-type": "application/json" };
+export const BAD_ORIGIN = { ...JSON_HEADERS, origin: "http://evil.example" };
+export const TEXT_PLAIN = { origin: ORIGIN, "content-type": "text/plain" };
+export const NIL_UUID = "00000000-0000-4000-8000-000000000000";
 export const future = (days = 3) => new Date(Date.now() + days * 86_400_000).toISOString();
 export const valid = () => ({
   firstName: "Test",

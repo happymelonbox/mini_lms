@@ -1,12 +1,15 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { Role } from "@/lib/auth/current-user";
+import { nav } from "@/tests/navigation";
 import { AppHeader } from "./app-header";
 
-const nav = vi.hoisted(() => ({ pathname: "/dashboard" }));
-vi.mock("next/navigation", () => ({ usePathname: () => nav.pathname, useRouter: () => ({}) }));
-vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({}) }));
-vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "light", setTheme: vi.fn() }) }));
+vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "light", setTheme: () => {} }) }));
+
+const STUDENT_LINKS: [string, string][] = [
+  ["Consultations", "/dashboard"],
+  ["Book", "/dashboard/book"],
+];
 
 it.each<{
   name: string;
@@ -19,20 +22,14 @@ it.each<{
     name: "student on dashboard",
     role: "student",
     pathname: "/dashboard",
-    links: [
-      ["Consultations", "/dashboard"],
-      ["Book", "/dashboard/book"],
-    ],
+    links: STUDENT_LINKS,
     current: "Consultations",
   },
   {
     name: "student on book",
     role: "student",
     pathname: "/dashboard/book",
-    links: [
-      ["Consultations", "/dashboard"],
-      ["Book", "/dashboard/book"],
-    ],
+    links: STUDENT_LINKS,
     current: "Book",
   },
   { name: "admin has no nav", role: "admin", pathname: "/admin", links: [], current: null },

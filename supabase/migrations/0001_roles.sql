@@ -1,3 +1,4 @@
+-- Roles: default privilege lockdown, app_role, user_roles, and the JWT hook that puts the role in the token.
 -- Tables, functions and sequences created later in `public` must not be callable by API roles
 -- unless a migration grants it explicitly (Supabase's defaults grant everything to anon/authenticated).
 alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated;

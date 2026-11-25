@@ -1,3 +1,4 @@
+// Next config: static security headers on every route.
 import type { NextConfig } from "next";
 
 // Static headers; the nonce-based CSP is per request and set in proxy.ts.

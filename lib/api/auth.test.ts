@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticate } from "./auth";
 
-const m = vi.hoisted(() => ({ createClient: vi.fn(), getClaims: vi.fn() }));
+type Claims = { data: { claims: { sub?: string; user_role?: string; email?: string } } | null };
+
+const m = vi.hoisted(() => {
+  const getClaims = vi.fn<() => Promise<Claims>>();
+  return {
+    getClaims,
+    createClient: vi.fn<() => Promise<{ auth: { getClaims: typeof getClaims } }>>(),
+  };
+});
 vi.mock("@/lib/supabase/server", () => ({ createClient: m.createClient }));
 
 const SUPABASE = { auth: { getClaims: m.getClaims } };

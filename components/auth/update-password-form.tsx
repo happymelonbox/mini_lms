@@ -1,5 +1,7 @@
 "use client";
 
+// Form to set a new password after following the reset link.
+
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";

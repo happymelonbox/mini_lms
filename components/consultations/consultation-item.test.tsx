@@ -2,92 +2,76 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsultationDto } from "@/lib/consultations/service";
+import { consultation } from "@/tests/fixtures";
+import { router } from "@/tests/navigation";
 import { ConsultationItem } from "./consultation-item";
-
-const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
 
 // The real api client runs; only the network edge is faked.
 const fetchMock = vi.fn<typeof fetch>();
 beforeEach(() => {
-  vi.clearAllMocks();
   vi.stubGlobal("fetch", fetchMock);
-  fetchMock.mockResolvedValue(reply(200, {}));
-});
-
-const reply = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-
-const consultation = (status: ConsultationDto["status"]): ConsultationDto => ({
-  id: "c1",
-  firstName: "Ann",
-  lastName: "Lee",
-  reason: "Help with my essay",
-  scheduledAt: "2999-06-15T12:00:00.000Z",
-  status,
-  createdAt: "2999-01-01T00:00:00.000Z",
-  updatedAt: "2999-01-01T00:00:00.000Z",
+  fetchMock.mockResolvedValue(Response.json({}));
 });
 
 const renderItem = (status: ConsultationDto["status"]) =>
   render(
     <ul>
-      <ConsultationItem c={consultation(status)} />
+      <ConsultationItem c={consultation({ status })} />
     </ul>,
   );
 
-const sentBody = () => JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+const patch = (body: object): [string, RequestInit] => [
+  `/api/consultations/${consultation().id}`,
+  { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+];
 const mark = () => screen.getByRole("checkbox", { name: "Mark as done: Help with my essay" });
-const cancelAndConfirm = async (user: ReturnType<typeof userEvent.setup>) => {
+const setup = () => userEvent.setup({ delay: null });
+const cancelAndConfirm = async (user: ReturnType<typeof setup>) => {
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   await user.click(screen.getByRole("button", { name: "Yes, cancel it" }));
 };
+const reschedule = async (user: ReturnType<typeof setup>, when: string) => {
+  await user.click(screen.getByRole("button", { name: "Reschedule" }));
+  const input = screen.getByLabelText("New date and time");
+  await user.clear(input);
+  await user.paste(when);
+  await user.click(screen.getByRole("button", { name: "Save new time" }));
+};
 
 describe("ConsultationItem controls per status", () => {
-  it.each([
-    { name: "scheduled", status: "scheduled" as const, checked: false, actions: true, done: true },
-    { name: "completed", status: "completed" as const, checked: true, actions: false, done: true },
-    {
-      name: "cancelled",
-      status: "cancelled" as const,
-      checked: false,
-      actions: false,
-      done: false,
-    },
-  ])("$name", ({ status, checked, actions, done }) => {
+  it.each<{
+    status: ConsultationDto["status"];
+    checked: boolean;
+    actions: boolean;
+    done: boolean;
+  }>([
+    { status: "scheduled", checked: false, actions: true, done: true },
+    { status: "completed", checked: true, actions: false, done: true },
+    { status: "cancelled", checked: false, actions: false, done: false },
+  ])("$status", ({ status, checked, actions, done }) => {
     renderItem(status);
 
     expect(screen.getByRole("heading", { name: "Help with my essay" })).toBeVisible();
     expect(screen.getByText(status)).toBeVisible();
-    expect(screen.queryByRole("checkbox") !== null).toBe(done);
-    if (done) expect(mark().getAttribute("aria-checked") === "true").toBe(checked);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(done ? 1 : 0);
+    if (done) expect(mark()).toHaveAttribute("aria-checked", String(checked));
     for (const name of ["Reschedule", "Cancel"]) {
-      expect(screen.queryByRole("button", { name }) !== null).toBe(actions);
+      expect(screen.queryAllByRole("button", { name })).toHaveLength(actions ? 1 : 0);
     }
   });
 });
 
 describe("ConsultationItem actions", () => {
-  it.each([
-    {
-      name: "ticking marks it complete",
-      status: "scheduled" as const,
-      body: { action: "complete" },
-    },
-    {
-      name: "unticking marks it incomplete",
-      status: "completed" as const,
-      body: { action: "incomplete" },
-    },
+  it.each<{ name: string; status: ConsultationDto["status"]; body: object }>([
+    { name: "ticking marks it complete", status: "scheduled", body: { action: "complete" } },
+    { name: "unticking marks it incomplete", status: "completed", body: { action: "incomplete" } },
   ])("$name", async ({ status, body }) => {
     renderItem(status);
 
-    await userEvent.setup().click(mark());
+    await setup().click(mark());
 
     await vi.waitFor(() => expect(router.refresh).toHaveBeenCalledOnce());
-    expect(fetchMock.mock.calls[0][0]).toBe("/api/consultations/c1");
-    expect(fetchMock.mock.calls[0][1]?.method).toBe("PATCH");
-    expect(sentBody()).toEqual(body);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(...patch(body));
   });
 
   it.each([
@@ -97,17 +81,12 @@ describe("ConsultationItem actions", () => {
       body: { action: "reschedule", scheduledAt: new Date("2999-07-01T09:30").toISOString() },
     },
   ])("$name", async ({ when, body }) => {
-    const user = userEvent.setup();
     renderItem("scheduled");
 
-    await user.click(screen.getByRole("button", { name: "Reschedule" }));
-    const input = screen.getByLabelText("New date and time");
-    await user.clear(input);
-    await user.type(input, when);
-    await user.click(screen.getByRole("button", { name: "Save new time" }));
+    await reschedule(setup(), when);
 
     await vi.waitFor(() => expect(router.refresh).toHaveBeenCalledOnce());
-    expect(sentBody()).toEqual(body);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(...patch(body));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -118,14 +97,9 @@ describe("ConsultationItem actions", () => {
       message: "Pick a time that hasn’t passed yet",
     },
   ])("$name", async ({ when, message }) => {
-    const user = userEvent.setup();
     renderItem("scheduled");
 
-    await user.click(screen.getByRole("button", { name: "Reschedule" }));
-    const input = screen.getByLabelText("New date and time");
-    await user.clear(input);
-    await user.type(input, when);
-    await user.click(screen.getByRole("button", { name: "Save new time" }));
+    await reschedule(setup(), when);
 
     expect(await screen.findByText(message)).toBeVisible();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -135,13 +109,13 @@ describe("ConsultationItem actions", () => {
     { name: "asking to keep it sends nothing", confirm: false },
     { name: "confirming sends cancel", confirm: true },
   ])("cancel dialog: $name", async ({ confirm }) => {
-    const user = userEvent.setup();
+    const user = setup();
     renderItem("scheduled");
 
     if (confirm) {
       await cancelAndConfirm(user);
       await vi.waitFor(() => expect(router.refresh).toHaveBeenCalledOnce());
-      expect(sentBody()).toEqual({ action: "cancel" });
+      expect(fetchMock).toHaveBeenCalledExactlyOnceWith(...patch({ action: "cancel" }));
     } else {
       await user.click(screen.getByRole("button", { name: "Cancel" }));
       await user.click(screen.getByRole("button", { name: "Keep it" }));
@@ -165,10 +139,10 @@ describe("ConsultationItem server errors", () => {
       refreshes: 0,
     },
   ])("$name", async ({ status, message, refreshes }) => {
-    fetchMock.mockResolvedValue(reply(status, { error: { code: "x", message } }));
+    fetchMock.mockResolvedValue(Response.json({ error: { code: "x", message } }, { status }));
     renderItem("scheduled");
 
-    await userEvent.setup().click(mark());
+    await setup().click(mark());
 
     expect(await screen.findByRole("alert")).toHaveTextContent(message);
     expect(router.refresh).toHaveBeenCalledTimes(refreshes);
@@ -178,16 +152,11 @@ describe("ConsultationItem server errors", () => {
     "$name",
     async ({ status }) => {
       fetchMock.mockResolvedValue(
-        reply(status, { error: { code: "x", message: "Too late to move" } }),
+        Response.json({ error: { code: "x", message: "Too late to move" } }, { status }),
       );
-      const user = userEvent.setup();
       renderItem("scheduled");
 
-      await user.click(screen.getByRole("button", { name: "Reschedule" }));
-      const input = screen.getByLabelText("New date and time");
-      await user.clear(input);
-      await user.type(input, "2999-07-01T09:30");
-      await user.click(screen.getByRole("button", { name: "Save new time" }));
+      await reschedule(setup(), "2999-07-01T09:30");
 
       expect(await screen.findByText("Too late to move")).toBeVisible();
       expect(screen.getByRole("dialog")).toBeVisible();
@@ -197,14 +166,14 @@ describe("ConsultationItem server errors", () => {
 
 describe("ConsultationItem focus after cancel", () => {
   it.each([{ name: "moves to the heading once the row shows cancelled" }])("$name", async () => {
-    const user = userEvent.setup();
+    const user = setup();
     const { rerender } = renderItem("scheduled");
 
     await cancelAndConfirm(user);
     await vi.waitFor(() => expect(router.refresh).toHaveBeenCalled());
     rerender(
       <ul>
-        <ConsultationItem c={consultation("cancelled")} />
+        <ConsultationItem c={consultation({ status: "cancelled" })} />
       </ul>,
     );
 

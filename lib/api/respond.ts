@@ -1,3 +1,4 @@
+// JSON and error response helpers; maps database errors to safe HTTP responses.
 import type { PostgrestError } from "@supabase/supabase-js";
 import type { ZodError } from "zod";
 
@@ -28,6 +29,7 @@ export function validationError(error: ZodError) {
   return errorResponse(400, "validation_error", "Invalid request", { fields });
 }
 
+// Trigger messages from 0002_consultations.sql that mean "not allowed in the current state".
 const STATE_CONFLICTS = new Set([
   "consultation_cancelled_immutable",
   "invalid_status_transition",

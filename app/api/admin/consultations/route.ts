@@ -1,3 +1,4 @@
+// GET /api/admin/consultations: admin-only read of every consultation.
 import { authenticate } from "@/lib/api/auth";
 import { parsePageQuery } from "@/lib/api/guards";
 import { dbErrorResponse, json } from "@/lib/api/respond";

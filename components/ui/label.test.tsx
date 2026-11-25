@@ -11,6 +11,6 @@ it.each([{ name: "names the input it points at via htmlFor" }])("Label $name", a
     </>,
   );
   const input = screen.getByLabelText("Full name");
-  await userEvent.setup().click(screen.getByText("Full name"));
+  await userEvent.setup({ delay: null }).click(screen.getByText("Full name"));
   expect(input).toHaveFocus();
 });

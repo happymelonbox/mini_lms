@@ -1,3 +1,4 @@
+-- Row level security and column grants for consultations.
 alter table public.consultations enable row level security;
 
 -- Column grants are the first wall: students may only set what the booking form and

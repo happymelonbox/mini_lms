@@ -1,18 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { auth, router } from "@/tests/navigation";
 import { LoginForm } from "./login-form";
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
-
-const auth = vi.hoisted(() => ({ signInWithPassword: vi.fn() }));
-vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth }) }));
-
-beforeEach(() => vi.clearAllMocks());
-
 async function submit(email: string, password: string) {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
   render(<LoginForm />);
   await user.type(screen.getByLabelText("Email"), email);
   await user.type(screen.getByLabelText("Password"), password);
@@ -37,7 +30,7 @@ describe("LoginForm", () => {
 
     await submit("ann@example.com", "Password123!");
 
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({
+    expect(auth.signInWithPassword).toHaveBeenCalledExactlyOnceWith({
       email: "ann@example.com",
       password: "Password123!",
     });
@@ -45,7 +38,7 @@ describe("LoginForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(alert);
       expect(router.push).not.toHaveBeenCalled();
     } else {
-      await vi.waitFor(() => expect(router.push).toHaveBeenCalledWith("/"));
+      await vi.waitFor(() => expect(router.push).toHaveBeenCalledExactlyOnceWith("/"));
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     }
   });

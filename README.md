@@ -159,7 +159,7 @@ The look is "editorial calm": a near-white page, one teal accent for actions and
 | `npm run lint`             | ESLint                                                                                                   |
 | `npm run build`            | Production build                                                                                         |
 
-`npm test` runs 529 tests in 65 files (unit 323, components 144, integration 62), and `npm run test:db` runs 102 pgTAP tests in 3 files. Every source file has a sibling unit test, and `tests/sibling-tests.test.ts` fails when one is missing. The per-suite counts and how the tests were written are in [testing](docs/testing.md). The manual browser test evidence (iPhone, Pixel, desktop Chrome and Safari) is attached to the pull request.
+`npm test` runs 482 tests in 65 files (unit 309, components 125, integration 48), and `npm run test:db` runs 102 pgTAP tests in 3 files. Every source file has a sibling unit test, and `tests/sibling-tests.test.ts` fails when one is missing. The per-suite counts and how the tests were written are in [testing](docs/testing.md). The manual browser test evidence (iPhone, Pixel, desktop Chrome and Safari) is attached to the pull request.
 
 ## Project structure
 

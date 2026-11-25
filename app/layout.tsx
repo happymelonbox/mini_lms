@@ -1,3 +1,4 @@
+// Root layout: fonts, theme provider, and the CSP nonce handed down from proxy.ts.
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Newsreader, Source_Sans_3 } from "next/font/google";

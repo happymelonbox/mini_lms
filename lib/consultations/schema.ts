@@ -1,3 +1,4 @@
+// Zod schemas shared by the API handlers and the booking form: input, patch actions, list cursors.
 import { z } from "zod";
 
 // Zod probes `new Function("")` to decide whether to JIT; our CSP forbids eval, so turn the probe off.
@@ -17,6 +18,7 @@ const futureDate = z.iso
   .datetime({ offset: true, error: "Use an ISO 8601 date-time with timezone offset" })
   .refine((v) => new Date(v).getTime() > Date.now(), "Must be in the future");
 
+// strict(): unknown keys (student_id, status, ...) are rejected, not silently dropped.
 export const createSchema = z
   .object({
     firstName: name,

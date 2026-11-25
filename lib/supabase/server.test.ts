@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createClient } from "./server";
 
 type Options = {
@@ -13,18 +13,15 @@ const m = vi.hoisted(() => ({
   createServerClient: vi.fn<(url: string, key: string, o: Options) => unknown>(
     () => "server-client",
   ),
-  store: { getAll: vi.fn(), set: vi.fn() },
+  store: {
+    getAll: vi.fn<() => { name: string; value: string }[]>(),
+    set: vi.fn<(name: string, value: string, options: object) => void>(),
+  },
 }));
 vi.mock("@supabase/ssr", () => ({ createServerClient: m.createServerClient }));
 vi.mock("next/headers", () => ({ cookies: async () => m.store }));
 
-const optionsPassed = () => m.createServerClient.mock.calls[0][2] as Options;
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.clearAllMocks();
-  m.store.set.mockReset();
-});
+const optionsPassed = () => m.createServerClient.mock.calls[0][2];
 
 describe("server createClient", () => {
   it.each([
@@ -50,7 +47,7 @@ describe("server createClient", () => {
     },
   ])("$name", async ({ throws }) => {
     if (throws) {
-      m.store.set.mockImplementation(() => {
+      m.store.set.mockImplementationOnce(() => {
         throw new Error("read-only");
       });
     }

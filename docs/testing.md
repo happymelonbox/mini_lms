@@ -22,10 +22,10 @@ I measured these counts by running each command at this commit.
 | Command                    | Result                    |
 | -------------------------- | ------------------------- |
 | `npm run test:db`          | 102 tests, 3 files, pass  |
-| `npm run test:unit`        | 323 tests, 22 files, pass |
-| `npm run test:components`  | 144 tests, 37 files, pass |
-| `npm run test:integration` | 62 tests, 6 files, pass   |
-| `npm test`                 | 529 tests, 65 files, pass |
+| `npm run test:unit`        | 309 tests, 22 files, pass |
+| `npm run test:components`  | 125 tests, 37 files, pass |
+| `npm run test:integration` | 48 tests, 6 files, pass   |
+| `npm test`                 | 482 tests, 65 files, pass |
 
 `npm test` runs every Vitest project (unit, components and integration). `test:db` and `test:integration` need the local stack, so run `supabase start` and `supabase db reset` first. The integration tests read `.env.local` and sign in as the seeded admin. `supabase db lint` checks the database functions.
 
@@ -43,12 +43,12 @@ The policy suite simulates PostgREST by setting `request.jwt.claims` and `role` 
 
 Every source file under `app/`, `components/`, `hooks/` and `lib/`, and `proxy.ts`, has a sibling test file (`booking-form.tsx` has `booking-form.test.tsx`). `tests/sibling-tests.test.ts` lists one row per source file and fails when a test file is missing. `lib/database.types.ts` is the only exception, because it is generated. Every test is a table test (`it.each`).
 
-The `.test.ts` files run in the `unit` project with no network. They mock the edges: the network (`fetch`), the Supabase client factory and Next.js navigation. They assert what a caller or user sees, such as a status code, a redirect target or a message, and not how the code gets there. The areas with the most cases:
+The `.test.ts` files run in the `unit` project with no network. They mock the edges: the network (`fetch`), the Supabase client factory and Next.js navigation. They assert what a caller or user sees, such as a status code, a redirect target or a message, and not how the code gets there. Mocks are typed, so a wrong-shaped fake fails the type check. Shared fakes live in `tests/navigation.ts` (router, pathname, redirect, Supabase auth) and shared data in `tests/fixtures.ts` (a consultation, a list page, users, a database error). Vitest clears mocks, stubbed globals and env vars between tests. The areas with the most cases:
 
 - **Schemas** (`schema.test.ts`, `form-schema.test.ts`): Trim rules, NUL and broken UTF-16, limits, future dates, offsets, `.strict()` keys, patch actions, cursor decoding and rejection
 - **API guards** (`guards.test.ts`): Origin match, prefix tricks, unset `APP_ORIGIN`, Content-Type, body size at 10,240 bytes with and without `Content-Length`, UTF-8 byte counting, list query
 - **Error mapping** (`respond.test.ts`): Every database error to status, no raw text leaks, `Retry-After` on 429, `no-store`
-- **Browser client** (`client.test.ts`): Response mapping for 200, 201, 400, 401, 404, 409, 429, 500 and network failure
+- **Browser client** (`client.test.ts`): Response mapping for success, field errors, conflicts, a body without JSON, server errors and network failure
 - **Auth** (`current-user.test.ts`, `safe-redirect.test.ts`): Claim parsing, null role, redirect allow list
 - **Security** (`csp.test.ts`, `proxy.test.ts`): Directives, nonce, dev versus production. Which paths the proxy matcher covers
 - **UI helpers** (`list-page.test.ts`, `datetime.test.ts`): Cursor parsing with fallback, local time conversion

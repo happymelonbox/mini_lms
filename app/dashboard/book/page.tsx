@@ -1,3 +1,4 @@
+// /dashboard/book: page around the booking form.
 import type { Metadata } from "next";
 import { BookingForm } from "@/components/consultations/booking-form";
 

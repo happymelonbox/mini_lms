@@ -1,3 +1,4 @@
+// Supabase client for server code, bound to the request's cookies.
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 

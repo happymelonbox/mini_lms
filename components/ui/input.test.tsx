@@ -4,12 +4,12 @@ import { expect, it } from "vitest";
 import { Input } from "./input";
 
 it.each([
-  { name: "enabled", disabled: false, type: "email", typed: "a" },
-  { name: "disabled blocks typing", disabled: true, type: "email", typed: "" },
-])("Input $name", async ({ disabled, type, typed }) => {
-  render(<Input aria-label="Email" type={type} disabled={disabled} />);
+  { name: "enabled", disabled: false, expected: "a" },
+  { name: "disabled blocks typing", disabled: true, expected: "" },
+])("Input $name", async ({ disabled, expected }) => {
+  render(<Input aria-label="Email" type="email" disabled={disabled} />);
   const input = screen.getByRole("textbox", { name: "Email" });
-  await userEvent.setup().type(input, "a");
-  expect(input).toHaveValue(typed);
-  expect(input).toHaveAttribute("type", type);
+  await userEvent.setup({ delay: null }).type(input, "a");
+  expect(input).toHaveValue(expected);
+  expect(input).toHaveAttribute("type", "email");
 });

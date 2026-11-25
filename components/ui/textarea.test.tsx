@@ -9,6 +9,6 @@ it.each([
 ])("Textarea $name", async ({ disabled, expected }) => {
   render(<Textarea aria-label="Reason" disabled={disabled} />);
   const field = screen.getByRole("textbox", { name: "Reason" });
-  await userEvent.setup().type(field, "hi");
+  await userEvent.setup({ delay: null }).type(field, "hi");
   expect(field).toHaveValue(expected);
 });

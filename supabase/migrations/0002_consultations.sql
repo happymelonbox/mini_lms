@@ -1,3 +1,4 @@
+-- Consultations table, indexes, and the triggers that enforce business rules and the insert rate limit.
 create type public.consultation_status as enum ('scheduled', 'completed', 'cancelled');
 
 -- Text checks match JS trim() exactly: an explicit whitespace list (not \s), so the result does not depend on the

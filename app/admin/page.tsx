@@ -1,3 +1,4 @@
+// /admin: read-only, keyset-paginated list of every student's consultations.
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";

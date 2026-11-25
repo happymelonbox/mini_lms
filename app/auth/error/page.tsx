@@ -1,3 +1,4 @@
+// /auth/error: shows fixed copy for a known error code.
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 

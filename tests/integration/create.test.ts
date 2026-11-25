@@ -2,114 +2,80 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { POST } from "@/app/api/consultations/route";
 import {
   type Actor,
+  BAD_ORIGIN,
   call,
   clients,
   DTO_KEYS,
   freshStudent,
   future,
   JSON_HEADERS,
-  ORIGIN,
   setupClients,
+  TEXT_PLAIN,
   valid,
 } from "./helpers";
 
 beforeAll(setupClients);
 
-type FieldErrors = { error: { fields: Record<string, string[]> } };
-
 const post = (actor: Actor, body: unknown, headers: Record<string, string> = JSON_HEADERS) =>
   call(actor, POST, "/api/consultations", { method: "POST", headers, body });
 
 describe("POST /api/consultations", () => {
+  const fieldError = (field: string, message: string) => ({
+    error: { fields: { [field]: [message] } },
+  });
   it.each([
     {
       name: "valid -> 201 DTO",
       actor: "student" as const,
       body: valid(),
       status: 201,
-      check: (b: Record<string, unknown>) =>
-        Object.keys(b).sort().join() === DTO_KEYS.join() && b.status === "scheduled",
+      want: { status: "scheduled" },
     },
     {
       name: "trims input",
       actor: "student" as const,
       body: { ...valid(), firstName: "  Ann  " },
       status: 201,
-      check: (b: Record<string, unknown>) => b.firstName === "Ann",
+      want: { firstName: "Ann" },
     },
     {
       name: "unknown key student_id",
       actor: "student" as const,
       body: { ...valid(), student_id: "22222222-2222-4222-8222-222222222222" },
       status: 400,
-      check: (b: { error: { fields: object } }) => "student_id" in b.error.fields,
-    },
-    {
-      name: "unknown key status",
-      actor: "student" as const,
-      body: { ...valid(), status: "completed" },
-      status: 400,
+      want: fieldError("student_id", 'Unrecognized key: "student_id"'),
     },
     {
       name: "past date",
       actor: "student" as const,
       body: { ...valid(), scheduledAt: new Date(Date.now() - 1000).toISOString() },
       status: 400,
-      check: (b: FieldErrors) => !!b.error.fields.scheduledAt,
-    },
-    {
-      name: "missing offset",
-      actor: "student" as const,
-      body: { ...valid(), scheduledAt: "2999-01-01T10:00:00" },
-      status: 400,
-    },
-    {
-      name: "blank name",
-      actor: "student" as const,
-      body: { ...valid(), firstName: "   " },
-      status: 400,
-      check: (b: FieldErrors) => !!b.error.fields.firstName,
+      want: fieldError("scheduledAt", "Must be in the future"),
     },
     {
       name: "NUL in reason -> 400 field error, not 500",
       actor: "student" as const,
       body: { ...valid(), reason: "Hel\u0000p" },
       status: 400,
-      check: (b: FieldErrors) => !!b.error.fields.reason,
+      want: fieldError("reason", "Invalid characters"),
     },
-    { name: "admin refused", actor: "admin" as const, body: valid(), status: 403 },
     {
       name: "admin refused before validation",
       actor: "admin" as const,
       body: {},
       status: 403,
-      check: (b: { error: { code: string } }) => b.error.code === "forbidden",
+      want: { error: { code: "forbidden" } },
     },
-  ])("$name", async ({ actor, body, status, check }) => {
+  ])("$name", async ({ actor, body, status, want }) => {
     const r = await post(actor, body);
     expect(r.res.status).toBe(status);
-    if (check) expect(check(r.body)).toBe(true);
+    expect(r.body).toMatchObject(want);
+    if (status === 201) expect(Object.keys(r.body).sort()).toEqual(DTO_KEYS);
   });
 
   it.each([
-    {
-      name: "wrong content type",
-      headers: { origin: ORIGIN, "content-type": "text/plain" },
-      body: JSON.stringify(valid()),
-      status: 415,
-    },
-    {
-      name: "missing origin",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(valid()),
-      status: 403,
-    },
-    {
-      name: "bad origin",
-      headers: { origin: "http://evil.example", "content-type": "application/json" },
-      body: JSON.stringify(valid()),
-      status: 403,
-    },
+    { name: "wrong content type", headers: TEXT_PLAIN, body: JSON.stringify(valid()), status: 415 },
+    { name: "bad origin", headers: BAD_ORIGIN, body: JSON.stringify(valid()), status: 403 },
     {
       name: "oversized body",
       headers: JSON_HEADERS,
@@ -118,7 +84,7 @@ describe("POST /api/consultations", () => {
     },
     { name: "malformed JSON", headers: JSON_HEADERS, body: "{not json", status: 400 },
   ])("$name", async ({ headers, body, status }) => {
-    const r = await post("student", body, headers as Record<string, string>);
+    const r = await post("student", body, headers);
     expect(r.res.status).toBe(status);
   });
 

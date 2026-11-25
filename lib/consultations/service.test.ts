@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Database } from "@/lib/database.types";
-import { encodeCursor, type ListQuery } from "./schema";
+import { encodeCursor } from "./schema";
 import {
   createConsultation,
   listAllConsultations,
@@ -63,13 +63,22 @@ const dto = (n: number) => ({
 const cur = (n: number) => encodeCursor(row(n).scheduled_at, row(n).id);
 const at = { scheduledAt: "2030-01-05T10:00:00Z", id: "00000000-0000-4000-8000-000000000005" };
 const ok = (rows: unknown[]) => ({ data: rows, error: null });
+const NOW = "2030-06-01T12:00:00.000Z";
+const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 const DB_ERROR = { code: "XX000", message: "boom" };
+
+beforeEach(() => {
+  vi.setSystemTime(NOW);
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("list queries: keyset shape", () => {
   it.each([
     {
       name: "forward (after): gte bound, .or() gt, ascending, limit n+1",
-      query: { after: at, pageSize: 2 } as ListQuery,
+      query: { after: at, pageSize: 2 },
       bound: ["gte", "scheduled_at", at.scheduledAt],
       or: `scheduled_at.gt.${at.scheduledAt},and(scheduled_at.eq.${at.scheduledAt},id.gt.${at.id})`,
       ascending: true,
@@ -77,11 +86,19 @@ describe("list queries: keyset shape", () => {
     },
     {
       name: "backward (before): lte bound, .or() lt, descending, limit n+1",
-      query: { before: at, pageSize: 4 } as ListQuery,
+      query: { before: at, pageSize: 4 },
       bound: ["lte", "scheduled_at", at.scheduledAt],
       or: `scheduled_at.lt.${at.scheduledAt},and(scheduled_at.eq.${at.scheduledAt},id.lt.${at.id})`,
       ascending: false,
       limit: 5,
+    },
+    {
+      name: "no cursor: forward page from 'now' with the nil uuid",
+      query: { pageSize: 2 },
+      bound: ["gte", "scheduled_at", NOW],
+      or: `scheduled_at.gt.${NOW},and(scheduled_at.eq.${NOW},id.gt.${NIL_UUID})`,
+      ascending: true,
+      limit: 3,
     },
   ])("$name", async ({ query, bound, or, ascending, limit }) => {
     const { db, calls } = fakeDb(ok([]));
@@ -98,59 +115,60 @@ describe("list queries: keyset shape", () => {
   });
 
   it.each([
-    { name: "own list filters by student_id", run: listOwnConsultations, scoped: true },
-    { name: "admin list does not", run: undefined, scoped: false },
-  ])("$name", async ({ run, scoped }) => {
-    const { db, calls } = fakeDb(ok([]));
-    if (run) await run(db, "u1", { pageSize: 10 });
-    else await listAllConsultations(db, { pageSize: 10 });
-    expect(calls.some((c) => c[0] === "eq" && c[1] === "student_id" && c[2] === "u1")).toBe(scoped);
-  });
-
-  it.each([{ name: "no cursor starts a forward page at 'now' with the nil uuid" }])(
-    "$name",
-    async () => {
-      const { db, calls } = fakeDb(ok([]));
-      await listAllConsultations(db, { pageSize: 10 });
-      const gte = calls.find((c) => c[0] === "gte");
-      const or = calls.find((c) => c[0] === "or");
-      expect(Date.now() - new Date(gte![2] as string).getTime()).toBeLessThan(5000);
-      expect(or![1]).toContain("id.gt.00000000-0000-0000-0000-000000000000");
+    {
+      name: "own list filters by student_id",
+      run: (db: SupabaseClient<Database>) => listOwnConsultations(db, "u1", { pageSize: 10 }),
+      eq: [["eq", "student_id", "u1"]],
     },
-  );
+    {
+      name: "admin list does not",
+      run: (db: SupabaseClient<Database>) => listAllConsultations(db, { pageSize: 10 }),
+      eq: [],
+    },
+  ])("$name", async ({ run, eq }) => {
+    const { db, calls } = fakeDb(ok([]));
+    await run(db);
+    expect(calls.filter((c) => c[0] === "eq")).toEqual(eq);
+  });
 });
 
 describe("list results: DTO mapping and cursors", () => {
   it.each([
     {
       name: "forward, more rows: drops the extra row, offers next and prev",
-      query: { after: at, pageSize: 2 } as ListQuery,
+      query: { after: at, pageSize: 2 },
       rows: [row(1), row(2), row(3)],
       expected: { data: [dto(1), dto(2)], nextCursor: cur(2), prevCursor: cur(1) },
     },
     {
       name: "forward, last page: no next cursor",
-      query: { after: at, pageSize: 2 } as ListQuery,
+      query: { after: at, pageSize: 2 },
       rows: [row(1), row(2)],
       expected: { data: [dto(1), dto(2)], nextCursor: null, prevCursor: cur(1) },
     },
     {
       name: "forward, empty page after a cursor: no prev",
-      query: { after: at, pageSize: 2 } as ListQuery,
+      query: { after: at, pageSize: 2 },
       rows: [],
       expected: { data: [], nextCursor: null, prevCursor: null },
     },
     {
       name: "backward, more rows: restores ascending order, offers prev and next",
-      query: { before: at, pageSize: 2 } as ListQuery,
+      query: { before: at, pageSize: 2 },
       rows: [row(3), row(2), row(1)],
       expected: { data: [dto(2), dto(3)], nextCursor: cur(3), prevCursor: cur(2) },
     },
     {
       name: "backward, first page: no prev cursor",
-      query: { before: at, pageSize: 2 } as ListQuery,
+      query: { before: at, pageSize: 2 },
       rows: [row(2), row(1)],
       expected: { data: [dto(1), dto(2)], nextCursor: cur(2), prevCursor: null },
+    },
+    {
+      name: "default view over an empty page still offers earlier",
+      query: { pageSize: 2 },
+      rows: [],
+      expected: { data: [], nextCursor: null, prevCursor: encodeCursor(NOW, NIL_UUID) },
     },
   ])("$name", async ({ query, rows, expected }) => {
     const { db } = fakeDb(ok(rows));
@@ -161,12 +179,6 @@ describe("list results: DTO mapping and cursors", () => {
     const { db } = fakeDb(ok([row(1)]));
     const result = await listAllConsultations(db, { pageSize: 10 });
     expect(JSON.stringify(result)).not.toContain("student");
-  });
-
-  it.each([{ name: "default view over an empty page still offers earlier" }])("$name", async () => {
-    const { db } = fakeDb(ok([]));
-    const result = await listAllConsultations(db, { pageSize: 10 });
-    expect(result).toMatchObject({ ok: true, value: { data: [], prevCursor: expect.any(String) } });
   });
 
   it.each([{ name: "database error is returned, not thrown" }])("$name", async () => {

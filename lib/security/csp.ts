@@ -1,3 +1,4 @@
+// Builds the Content-Security-Policy header for one request.
 export function buildCsp({
   nonce,
   supabaseUrl,

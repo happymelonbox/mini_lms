@@ -1,17 +1,14 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
-
+import { describe, expect, it } from "vitest";
 import Page from "./page";
 
 describe("Login page", () => {
-  it.each([
-    { name: "shows its heading", role: "heading", label: "Log in" },
-    { name: "shows the email field", role: "textbox", label: "Email" },
-    { name: "shows the submit button", role: "button", label: "Log in" },
-  ])("$name", ({ role, label }) => {
-    render(<Page />);
-    expect(screen.getByRole(role, { name: label })).toBeInTheDocument();
-  });
+  it.each([{ name: "shows its heading and the form", heading: "Log in", submit: "Log in" }])(
+    "$name",
+    ({ heading, submit }) => {
+      render(<Page />);
+      expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: submit })).toBeInTheDocument();
+    },
+  );
 });

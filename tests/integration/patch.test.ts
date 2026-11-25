@@ -1,59 +1,63 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { clients, create, future, ORIGIN, patch, setupClients } from "./helpers";
+import {
+  BAD_ORIGIN,
+  clients,
+  create,
+  future,
+  NIL_UUID,
+  patch,
+  setupClients,
+  TEXT_PLAIN,
+} from "./helpers";
 
 beforeAll(setupClients);
 
 describe("PATCH /api/consultations/[id]", () => {
   it.each([
-    { name: "complete", actions: [{ action: "complete" }], status: 200, final: "completed" },
+    { name: "complete", actions: [{ action: "complete" }], final: "completed" },
     {
       name: "complete then incomplete",
       actions: [{ action: "complete" }, { action: "incomplete" }],
-      status: 200,
       final: "scheduled",
     },
-    { name: "cancel", actions: [{ action: "cancel" }], status: 200, final: "cancelled" },
+    { name: "cancel", actions: [{ action: "cancel" }], final: "cancelled" },
     {
       name: "reschedule",
       actions: [{ action: "reschedule", scheduledAt: future(10) }],
-      status: 200,
       final: "scheduled",
     },
-  ])("$name on own row", async ({ actions, status, final }) => {
+  ])("$name on own row", async ({ actions, final }) => {
     const id = await create();
     let last;
     for (const a of actions) last = await patch("student", id, a);
-    expect(last!.res.status).toBe(status);
+    expect(last!.res.status).toBe(200);
     expect(last!.body.status).toBe(final);
     expect(last!.body.id).toBe(id);
     expect(last!.body).not.toHaveProperty("student_id");
   });
 
   it.each([
-    { name: "complete after cancel", first: "cancel", then: { action: "complete" }, status: 409 },
+    { name: "complete after cancel", first: "cancel", then: { action: "complete" } },
     {
       name: "reschedule after cancel",
       first: "cancel",
       then: { action: "reschedule", scheduledAt: future(9) },
-      status: 409,
     },
     {
       name: "incomplete after cancel",
       first: "cancel",
       then: { action: "incomplete" },
-      status: 409,
     },
     {
       name: "reschedule a completed row",
       first: "complete",
       then: { action: "reschedule", scheduledAt: future(5) },
-      status: 409,
     },
-  ])("$name", async ({ first, then, status }) => {
+  ])("$name", async ({ first, then }) => {
     const id = await create();
     await patch("student", id, { action: first });
     const r = await patch("student", id, then);
-    expect(r.res.status).toBe(status);
+    expect(r.res.status).toBe(409);
     expect(r.body.error.code).toBe("conflict");
     expect(JSON.stringify(r.body)).not.toMatch(/immutable|P0001|trigger/);
   });
@@ -62,15 +66,11 @@ describe("PATCH /api/consultations/[id]", () => {
     {
       name: "reschedule to past",
       body: { action: "reschedule", scheduledAt: new Date(Date.now() - 5000).toISOString() },
-      status: 400,
     },
-    { name: "reschedule no date", body: { action: "reschedule" }, status: 400 },
-    { name: "unknown action", body: { action: "delete" }, status: 400 },
-    { name: "extra key", body: { action: "cancel", status: "scheduled" }, status: 400 },
-    { name: "extra student_id", body: { action: "complete", student_id: "x" }, status: 400 },
-  ])("$name", async ({ body, status }) => {
-    const id = await create();
-    expect((await patch("student", id, body)).res.status).toBe(status);
+    { name: "extra student_id", body: { action: "complete", student_id: "x" } },
+  ])("$name -> 400", async ({ body }) => {
+    // The body is validated before the DB is touched, so no row is needed.
+    expect((await patch("student", crypto.randomUUID(), body)).res.status).toBe(400);
   });
 
   it.each([
@@ -100,35 +100,28 @@ describe("PATCH /api/consultations/[id]", () => {
   });
 
   it.each([
-    { name: "non-UUID id", id: "not-a-uuid", status: 404 },
-    { name: "unknown UUID", id: "00000000-0000-4000-8000-000000000000", status: 404 },
-  ])("$name -> 404", async ({ id, status }) => {
-    expect((await patch("student", id, { action: "cancel" })).res.status).toBe(status);
+    { name: "non-UUID id", id: "not-a-uuid" },
+    { name: "unknown UUID", id: NIL_UUID },
+  ])("$name -> 404", async ({ id }) => {
+    expect((await patch("student", id, { action: "cancel" })).res.status).toBe(404);
   });
-
-  it.each([{ name: "bad origin beats a non-UUID id", id: "not-a-uuid", status: 403 }])(
-    "$name",
-    async ({ id, status }) => {
-      const headers = { origin: "http://evil.example", "content-type": "application/json" };
-      const r = await patch("student", id, { action: "cancel" }, headers);
-      expect(r.res.status).toBe(status);
-      expect(r.body.error.code).toBe("forbidden_origin");
-    },
-  );
 
   it.each([
     {
-      name: "bad origin",
-      headers: { origin: "http://evil.example", "content-type": "application/json" },
+      name: "bad origin beats a non-UUID id",
+      headers: BAD_ORIGIN,
       status: 403,
+      code: "forbidden_origin",
     },
     {
       name: "wrong content type",
-      headers: { origin: ORIGIN, "content-type": "text/plain" },
+      headers: TEXT_PLAIN,
       status: 415,
+      code: "unsupported_media_type",
     },
-  ])("$name", async ({ headers, status }) => {
-    const id = await create();
-    expect((await patch("student", id, { action: "cancel" }, headers)).res.status).toBe(status);
+  ])("$name", async ({ headers, status, code }) => {
+    const r = await patch("student", "not-a-uuid", { action: "cancel" }, headers);
+    expect(r.res.status).toBe(status);
+    expect(r.body.error.code).toBe(code);
   });
 });

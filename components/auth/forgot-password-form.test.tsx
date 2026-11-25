@@ -1,12 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import { auth } from "@/tests/navigation";
 import { ForgotPasswordForm } from "./forgot-password-form";
-
-const auth = vi.hoisted(() => ({ resetPasswordForEmail: vi.fn() }));
-vi.mock("@/lib/supabase/client", () => ({ createClient: () => ({ auth }) }));
-
-beforeEach(() => vi.clearAllMocks());
 
 describe("ForgotPasswordForm", () => {
   it.each([
@@ -24,7 +20,7 @@ describe("ForgotPasswordForm", () => {
     },
   ])("$name", async ({ result, visible, hidden }) => {
     auth.resetPasswordForEmail.mockResolvedValue(result);
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     render(<ForgotPasswordForm />);
 
     await user.type(screen.getByLabelText("Email"), "ann@example.com");
@@ -32,6 +28,6 @@ describe("ForgotPasswordForm", () => {
 
     expect(await screen.findByText(visible)).toBeVisible();
     if (hidden) expect(screen.queryByText(hidden)).not.toBeInTheDocument();
-    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith("ann@example.com");
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledExactlyOnceWith("ann@example.com");
   });
 });

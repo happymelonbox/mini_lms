@@ -1,5 +1,7 @@
 "use client";
 
+// Booking form: validates with the same schema as the API, then POSTs.
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";

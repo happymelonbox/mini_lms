@@ -1,3 +1,4 @@
+// All consultation queries: list with keyset pagination, create, update. Rules beyond these live in RLS and triggers.
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Tables, TablesUpdate } from "@/lib/database.types";
 import { encodeCursor, type CreateInput, type ListQuery, type PatchInput } from "./schema";

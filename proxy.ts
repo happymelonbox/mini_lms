@@ -1,3 +1,4 @@
+// Next proxy: sets the per-request CSP nonce and refreshes the Supabase session. Skips /api and static files.
 import { updateSession } from "@/lib/supabase/proxy";
 import { buildCsp } from "@/lib/security/csp";
 import { type NextRequest } from "next/server";

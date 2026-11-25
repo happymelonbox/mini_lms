@@ -3,13 +3,12 @@ import { describe, expect, it } from "vitest";
 import Page from "./page";
 
 describe("Sign up success page", () => {
-  it.each([
-    { name: "thanks the visitor", role: "heading", label: "Thanks for signing up", href: null },
-    { name: "links home", role: "link", label: "Go to your consultations", href: "/" },
-  ])("$name", ({ role, label, href }) => {
+  it.each([{ name: "thanks the visitor and links home" }])("$name", () => {
     render(<Page />);
-    const el = screen.getByRole(role, { name: label });
-    expect(el).toBeInTheDocument();
-    if (href) expect(el).toHaveAttribute("href", href);
+    expect(screen.getByRole("heading", { name: "Thanks for signing up" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Go to your consultations" })).toHaveAttribute(
+      "href",
+      "/",
+    );
   });
 });
